@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
 import logging
 
+import re
 import gi
-
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib, Gtk, Pango
 from jinja2 import Environment
 from datetime import datetime
 from math import log
 from ks_includes.screen_panel import ScreenPanel
-
+import subprocess
 
 class BasePanel(ScreenPanel):
     def __init__(self, screen, title=None):
@@ -327,13 +327,17 @@ class BasePanel(ScreenPanel):
         self.titlelbl.set_label(f"{printer} {title}")
 
     def update_time(self):
+        status, info = subprocess.getstatusoutput("upower -i /org/freedesktop/UPower/devices/battery_BAT1")
+        isCharging = "Discharging" if re.search("state:\s*(\w+)",info).group(1) == 'discharging' else ""
+        percentage = re.search("percentage:\s*(\d+)%",info).group(1)
+
         now = datetime.now()
         confopt = self._config.get_main_config().getboolean("24htime", True)
         if now.minute != self.time_min or self.time_format != confopt:
             if confopt:
-                self.control['time'].set_text(f'{now:%H:%M }')
+                self.control['time'].set_text(f'{now:%H:%M } {percentage}{isCharging}')
             else:
-                self.control['time'].set_text(f'{now:%I:%M %p}')
+                self.control['time'].set_text(f'{now:%I:%M %p} {percentage}{isCharging}')
             self.time_min = now.minute
             self.time_format = confopt
         return True
